@@ -27,10 +27,7 @@ export default function Register() {
     }
 
     if (password.length < 8) {
-      Alert.alert(
-        'Weak Password',
-        'Password must contain at least 8 characters.'
-      );
+      Alert.alert('Weak Password', 'Password must contain at least 8 characters.');
       return;
     }
 
@@ -44,7 +41,10 @@ export default function Register() {
     try {
       const { data, error } = await supabase.auth.signUp({
         email: cleanEmail,
-        password
+        password,
+        options: {
+          emailRedirectTo: 'talash://login-callback'
+        }
       });
 
       if (error) throw error;
@@ -52,30 +52,26 @@ export default function Register() {
       if (data.session) {
         Alert.alert(
           'Account Created',
-          'Your TALASH account has been created. Now complete your profile.',
-          [
-            {
-              text: 'Continue',
-              onPress: () => router.replace('/edit-profile')
-            }
-          ]
+          'Your account is ready. Complete your profile.',
+          [{
+            text: 'Continue',
+            onPress: () => router.replace('/edit-profile')
+          }]
         );
       } else {
         Alert.alert(
           'Verify Your Email',
-          'We have sent a confirmation link to your email address. Please verify your email, then return to TALASH and login to complete your profile.',
-          [
-            {
-              text: 'Go to Login',
-              onPress: () => router.replace('/')
-            }
-          ]
+          'A confirmation link has been sent to your email. Open it to verify your account and return to TALASH.',
+          [{
+            text: 'Go to Login',
+            onPress: () => router.replace('/')
+          }]
         );
       }
     } catch (error: any) {
       Alert.alert(
         'Registration Failed',
-        error.message || 'Unable to create your account. Please try again.'
+        error.message || 'Unable to create your account.'
       );
     } finally {
       setLoading(false);
@@ -128,18 +124,10 @@ export default function Register() {
 
       <View style={s.notice}>
         <Text style={s.noticeTitle}>Important</Text>
-        <Text style={s.noticeText}>
-          • TALASH is for adults aged 18 and above.
-        </Text>
-        <Text style={s.noticeText}>
-          • Users must declare their Muslim identity.
-        </Text>
-        <Text style={s.noticeText}>
-          • Profile information must be truthful.
-        </Text>
-        <Text style={s.noticeText}>
-          • Verification is subject to manual admin review.
-        </Text>
+        <Text style={s.noticeText}>• TALASH is for adults aged 18 and above.</Text>
+        <Text style={s.noticeText}>• Users must declare their Muslim identity.</Text>
+        <Text style={s.noticeText}>• Profile information must be truthful.</Text>
+        <Text style={s.noticeText}>• Verification is subject to manual admin review.</Text>
       </View>
 
       <Pressable
