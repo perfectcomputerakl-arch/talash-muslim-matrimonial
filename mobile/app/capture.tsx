@@ -34,32 +34,56 @@ export default function Capture() {
 
   const [cameraReady, setCameraReady] = useState(false);
 
-  // Capture live selfie
+  const [cameraError, setCameraError] = useState('');
+
+  // CAMERA CAPTURE
   const capturePhoto = async () => {
-    if (!camera.current || !cameraReady || capturing) {
+    if (!camera.current) {
+      Alert.alert('Camera Error', 'Camera is not available.');
       return;
     }
 
+    if (!cameraReady) {
+      Alert.alert('Please Wait', 'Camera is still starting.');
+      return;
+    }
+
+    if (capturing || busy) return;
+
     try {
       setCapturing(true);
+      setCameraError('');
+
+      console.log('TALASH: Starting camera capture');
 
       const result = await camera.current.takePictureAsync({
         quality: 0.8,
+        shutterSound: true,
       });
 
+      console.log('TALASH: Capture result:', result);
+
       if (!result || !result.uri) {
-        throw new Error('Camera returned an empty image.');
+        throw new Error('Camera returned an empty image URI.');
       }
 
       setPhoto(result.uri);
 
+      console.log('TALASH: Photo captured successfully');
+
     } catch (error: any) {
       console.error('TALASH CAMERA ERROR:', error);
 
-      Alert.alert(
-        'Camera Error',
+      const message =
         error?.message ||
-          'Unable to capture photo. Please try again.'
+        String(error) ||
+        'Unknown camera error';
+
+      setCameraError(message);
+
+      Alert.alert(
+        'Photo Capture Failed',
+        message
       );
 
     } finally {
@@ -67,7 +91,14 @@ export default function Capture() {
     }
   };
 
-  // Submit selfie for verification
+  // RETAKE PHOTO
+  const retakePhoto = () => {
+    setPhoto(null);
+    setCameraError('');
+    setCameraReady(false);
+  };
+
+  // UPLOAD PHOTO
   const uploadPhoto = async () => {
     if (!photo || busy) return;
 
@@ -82,13 +113,13 @@ export default function Capture() {
         error: authError,
       } = await supabase.auth.getUser();
 
-      if (authError || !user) {
-        throw new Error(
-          'Please login before submitting verification.'
-        );
+      if (authError) throw authError;
+
+      if (!user) {
+        throw new Error('Please login before verification.');
       }
 
-      // Check existing pending request
+      // Check pending verification
       const { data: existing, error: checkError } =
         await supabase
           .from('verification_requests')
@@ -105,36 +136,37 @@ export default function Capture() {
         );
       }
 
-      // Read captured image
+      // Convert image URI to blob
       const response = await fetch(photo);
 
       if (!response.ok) {
-        throw new Error(
-          'Could not read the captured photo.'
-        );
+        throw new Error('Unable to read captured image.');
       }
 
       const blob = await response.blob();
 
-      // Generate unique filename
+      if (!blob.size) {
+        throw new Error('Captured image is empty.');
+      }
+
+      // Generate unique path
       const fileName = `verification-${Date.now()}.jpg`;
 
       const path = `${user.id}/${fileName}`;
 
-      // Upload to private Supabase storage
-      const { error: uploadError } =
-        await supabase.storage
-          .from('verification-private')
-          .upload(path, blob, {
-            contentType: 'image/jpeg',
-            upsert: false,
-          });
+      // Upload to Supabase private bucket
+      const { error: uploadError } = await supabase.storage
+        .from('verification-private')
+        .upload(path, blob, {
+          contentType: 'image/jpeg',
+          upsert: false,
+        });
 
       if (uploadError) throw uploadError;
 
       uploadedPath = path;
 
-      // Create verification request
+      // Save verification request
       const { error: dbError } = await supabase
         .from('verification_requests')
         .insert({
@@ -145,7 +177,6 @@ export default function Capture() {
 
       if (dbError) throw dbError;
 
-      // Success
       uploadedPath = null;
 
       setPhoto(null);
@@ -162,30 +193,21 @@ export default function Capture() {
       );
 
     } catch (error: any) {
-      console.error(
-        'TALASH VERIFICATION ERROR:',
-        error
-      );
+      console.error('TALASH UPLOAD ERROR:', error);
 
-      // Cleanup uploaded image if database insert fails
       if (uploadedPath) {
-        const { error: removeError } =
-          await supabase.storage
-            .from('verification-private')
-            .remove([uploadedPath]);
+        const { error: removeError } = await supabase.storage
+          .from('verification-private')
+          .remove([uploadedPath]);
 
         if (removeError) {
-          console.error(
-            'Storage cleanup error:',
-            removeError
-          );
+          console.error('Cleanup error:', removeError);
         }
       }
 
       Alert.alert(
         'Submission Failed',
-        error?.message ||
-          'Something went wrong. Please try again.'
+        error?.message || 'Something went wrong.'
       );
 
     } finally {
@@ -193,14 +215,11 @@ export default function Capture() {
     }
   };
 
-  // Permission loading
+  // PERMISSION LOADING
   if (!permission) {
     return (
       <View style={s.center}>
-        <ActivityIndicator
-          size="large"
-          color="#0a513b"
-        />
+        <ActivityIndicator size="large" color="#0a513b" />
 
         <Text style={s.help}>
           Checking camera permission...
@@ -209,7 +228,7 @@ export default function Capture() {
     );
   }
 
-  // Permission request
+  // PERMISSION NOT GRANTED
   if (!permission.granted) {
     return (
       <View style={s.center}>
@@ -220,9 +239,8 @@ export default function Capture() {
         </Text>
 
         <Text style={s.help}>
-          TALASH needs camera access to capture a fresh
-          verification selfie. Gallery photos are not
-          accepted for this step.
+          TALASH needs camera access to capture your live selfie.
+          Gallery photos are not accepted.
         </Text>
 
         <Pressable
@@ -237,26 +255,22 @@ export default function Capture() {
     );
   }
 
-  // Main screen
+  // MAIN SCREEN
   return (
-    <ScrollView
-      contentContainerStyle={s.container}
-    >
-      <Text style={s.brand}>
-        TALASH
-      </Text>
+    <ScrollView contentContainerStyle={s.container}>
+
+      <Text style={s.brand}>TALASH</Text>
 
       <Text style={s.title}>
         Live Selfie Verification
       </Text>
 
       <Text style={s.help}>
-        Capture a fresh selfie using your phone camera.
-        Your photo will be stored privately and submitted
-        for manual admin review.
+        Capture a fresh selfie using your front camera.
+        Your photo will be stored privately for admin review.
       </Text>
 
-      {/* Instructions */}
+      {/* INSTRUCTIONS */}
       <View style={s.infoBox}>
         <Text style={s.infoTitle}>
           Before taking your selfie
@@ -275,11 +289,11 @@ export default function Capture() {
         </Text>
 
         <Text style={s.infoText}>
-          • Avoid filters and face coverings that obscure your face.
+          • Avoid filters.
         </Text>
       </View>
 
-      {/* Camera or captured image */}
+      {/* CAMERA */}
       {photo ? (
         <Image
           source={{ uri: photo }}
@@ -292,15 +306,15 @@ export default function Capture() {
           facing="front"
           mode="picture"
           onCameraReady={() => {
+            console.log('TALASH: Camera ready');
             setCameraReady(true);
+            setCameraError('');
           }}
           onMountError={(error) => {
-            console.error(
-              'Camera Mount Error:',
-              error.message
-            );
+            console.error('CAMERA MOUNT ERROR:', error);
 
             setCameraReady(false);
+            setCameraError(error.message);
 
             Alert.alert(
               'Camera Error',
@@ -310,7 +324,20 @@ export default function Capture() {
         />
       )}
 
-      {/* Capture button */}
+      {/* CAMERA ERROR */}
+      {!!cameraError && !photo && (
+        <View style={s.errorBox}>
+          <Text style={s.errorTitle}>
+            Camera Error Details
+          </Text>
+
+          <Text style={s.errorText}>
+            {cameraError}
+          </Text>
+        </View>
+      )}
+
+      {/* CAPTURE BUTTON */}
       {!photo && (
         <Pressable
           style={[
@@ -318,9 +345,7 @@ export default function Capture() {
             (!cameraReady || capturing) && s.disabled,
           ]}
           onPress={capturePhoto}
-          disabled={
-            !cameraReady || capturing || busy
-          }
+          disabled={!cameraReady || capturing || busy}
         >
           {capturing ? (
             <ActivityIndicator color="#fff" />
@@ -334,7 +359,7 @@ export default function Capture() {
         </Pressable>
       )}
 
-      {/* Preview and submission */}
+      {/* PHOTO PREVIEW */}
       {photo && (
         <>
           <Text style={s.previewLabel}>
@@ -343,10 +368,7 @@ export default function Capture() {
 
           <Pressable
             style={s.secondary}
-            onPress={() => {
-              setCameraReady(false);
-              setPhoto(null);
-            }}
+            onPress={retakePhoto}
             disabled={busy}
           >
             <Text style={s.secondaryText}>
@@ -355,10 +377,7 @@ export default function Capture() {
           </Pressable>
 
           <Pressable
-            style={[
-              s.button,
-              busy && s.disabled,
-            ]}
+            style={[s.button, busy && s.disabled]}
             onPress={uploadPhoto}
             disabled={busy}
           >
@@ -373,18 +392,18 @@ export default function Capture() {
         </>
       )}
 
-      {/* Privacy information */}
+      {/* PRIVACY */}
       <Text style={s.privacy}>
-        🔒 Your verification selfie is private and is
-        intended for authorized reviewers only.
-        Submission does not automatically verify
-        your account.
+        🔒 Your verification selfie is private and intended
+        for authorized reviewers only. Submission does not
+        automatically verify your account.
       </Text>
+
     </ScrollView>
   );
 }
 
-// Styles
+// STYLES
 const s = StyleSheet.create({
   container: {
     padding: 20,
@@ -505,5 +524,23 @@ const s = StyleSheet.create({
     color: '#777',
     marginTop: 25,
     marginBottom: 20,
+  },
+
+  errorBox: {
+    backgroundColor: '#ffebee',
+    padding: 14,
+    borderRadius: 12,
+    marginTop: 15,
+  },
+
+  errorTitle: {
+    color: '#b71c1c',
+    fontWeight: '900',
+    marginBottom: 6,
+  },
+
+  errorText: {
+    color: '#b71c1c',
+    lineHeight: 21,
   },
 });
