@@ -1,149 +1,191 @@
 import { useState } from 'react';
 import {
-View,
-Text,
-TextInput,
-Pressable,
-Alert,
-StyleSheet,
-ActivityIndicator
+  View,
+  Text,
+  TextInput,
+  Pressable,
+  StyleSheet,
+  Alert,
+  ActivityIndicator
 } from 'react-native';
 import { router } from 'expo-router';
 import { supabase } from '../lib/supabase';
 
-export default function Home() {
-const [email, setEmail] = useState('');
-const [password, setPassword] = useState('');
-const [loading, setLoading] = useState(false);
+export default function Login() {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
 
-const signIn = async () => {
-if (!email.trim() || !password) {
-Alert.alert('Required', 'Please enter your email and password.');
-return;
-}
+  const login = async () => {
+    if (!email.trim() || !password) {
+      Alert.alert('Required', 'Please enter email and password.');
+      return;
+    }
 
-if (loading) return;
+    setLoading(true);
 
-setLoading(true);
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: email.trim().toLowerCase(),
+        password
+      });
 
-const { error } = await supabase.auth.signInWithPassword({
-  email: email.trim(),
-  password
-});
+      if (error) throw error;
 
-setLoading(false);
+      if (!data.user) {
+        throw new Error('Login failed. Please try again.');
+      }
 
-if (error) {
-  Alert.alert('Login Failed', error.message);
-} else {
-  router.replace('/profile');
-}
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('id', data.user.id)
+        .maybeSingle();
 
-};
+      if (profileError) throw profileError;
 
-return (
-<View style={s.wrap}>
-<Text style={s.logo}>TALASH</Text>
-<Text style={s.tag}>Find Your Perfect Life Partner</Text>
+      if (profile) {
+        router.replace('/profile');
+      } else {
+        router.replace('/edit-profile');
+      }
+    } catch (error: any) {
+      Alert.alert(
+        'Login Failed',
+        error.message || 'Please check your login details.'
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  <Text style={s.heading}>Welcome Back</Text>
+  return (
+    <View style={s.container}>
+      <Text style={s.logo}>TALASH</Text>
 
-  <TextInput
-    style={s.input}
-    placeholder="Email address"
-    keyboardType="email-address"
-    autoCapitalize="none"
-    autoCorrect={false}
-    value={email}
-    onChangeText={setEmail}
-  />
+      <Text style={s.subtitle}>
+        A Trusted Muslim Matrimonial Platform
+      </Text>
 
-  <TextInput
-    style={s.input}
-    placeholder="Password"
-    secureTextEntry
-    value={password}
-    onChangeText={setPassword}
-  />
+      <Text style={s.heading}>Welcome Back</Text>
 
-  <Pressable
-    style={[s.button, loading && { opacity: 0.7 }]}
-    onPress={signIn}
-    disabled={loading}
-  >
-    {loading ? (
-      <ActivityIndicator color="#fff" />
-    ) : (
-      <Text style={s.btnText}>Login</Text>
-    )}
-  </Pressable>
+      <Text style={s.label}>Email Address</Text>
+      <TextInput
+        style={s.input}
+        placeholder="Enter your email"
+        value={email}
+        onChangeText={setEmail}
+        keyboardType="email-address"
+        autoCapitalize="none"
+        autoCorrect={false}
+      />
 
-  <Pressable onPress={() => router.push('/register')}>
-    <Text style={s.link}>Create a New Profile</Text>
-  </Pressable>
+      <Text style={s.label}>Password</Text>
+      <TextInput
+        style={s.input}
+        placeholder="Enter your password"
+        value={password}
+        onChangeText={setPassword}
+        secureTextEntry
+      />
 
-  <Text style={s.note}>
-    Muslim Matrimonial Platform · Privacy First
-  </Text>
-</View>
+      <Pressable
+        style={[s.button, loading && s.disabled]}
+        onPress={login}
+        disabled={loading}
+      >
+        {loading ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <Text style={s.buttonText}>Login</Text>
+        )}
+      </Pressable>
 
-);
+      <View style={s.registerRow}>
+        <Text style={s.registerText}>New to TALASH? </Text>
+
+        <Pressable onPress={() => router.push('/register')}>
+          <Text style={s.registerLink}>Create Account</Text>
+        </Pressable>
+      </View>
+
+      <Text style={s.footer}>
+        Privacy • Respect • Trust
+      </Text>
+    </View>
+  );
 }
 
 const s = StyleSheet.create({
-wrap: {
-flex: 1,
-justifyContent: 'center',
-padding: 24,
-backgroundColor: '#f7f5ef'
-},
-logo: {
-fontSize: 42,
-fontWeight: '900',
-color: '#0a513b',
-textAlign: 'center',
-letterSpacing: 4
-},
-tag: {
-textAlign: 'center',
-color: '#94722b',
-marginBottom: 40
-},
-heading: {
-fontSize: 24,
-fontWeight: '700',
-marginBottom: 18,
-color: '#163b2c'
-},
-input: {
-backgroundColor: 'white',
-padding: 15,
-borderRadius: 12,
-marginBottom: 12,
-borderWidth: 1,
-borderColor: '#ddd'
-},
-button: {
-backgroundColor: '#0a513b',
-padding: 16,
-borderRadius: 12,
-alignItems: 'center',
-marginTop: 8
-},
-btnText: {
-color: '#fff',
-fontWeight: '700'
-},
-link: {
-textAlign: 'center',
-color: '#0a513b',
-marginTop: 22,
-fontWeight: '700'
-},
-note: {
-textAlign: 'center',
-marginTop: 38,
-color: '#777',
-fontSize: 12
-}
+  container: {
+    flex: 1,
+    justifyContent: 'center',
+    padding: 25,
+    backgroundColor: '#f7f5ef'
+  },
+  logo: {
+    textAlign: 'center',
+    fontSize: 38,
+    fontWeight: '900',
+    letterSpacing: 7,
+    color: '#0a513b'
+  },
+  subtitle: {
+    textAlign: 'center',
+    color: '#94722b',
+    marginTop: 8,
+    marginBottom: 45
+  },
+  heading: {
+    fontSize: 27,
+    fontWeight: '900',
+    color: '#0a513b',
+    marginBottom: 22
+  },
+  label: {
+    color: '#244b3a',
+    fontWeight: '800',
+    marginBottom: 8,
+    marginTop: 13
+  },
+  input: {
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 12,
+    padding: 15,
+    fontSize: 15
+  },
+  button: {
+    backgroundColor: '#0a513b',
+    padding: 17,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 25
+  },
+  buttonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '900'
+  },
+  disabled: {
+    opacity: 0.6
+  },
+  registerRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginTop: 25
+  },
+  registerText: {
+    color: '#666'
+  },
+  registerLink: {
+    color: '#0a513b',
+    fontWeight: '900'
+  },
+  footer: {
+    textAlign: 'center',
+    color: '#999',
+    marginTop: 45
+  }
 });
