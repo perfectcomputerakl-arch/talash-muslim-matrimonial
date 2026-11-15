@@ -32,6 +32,14 @@ export default function Layout() {
         />
 
         <Stack.Screen
+          name="login-callback"
+          options={{
+            title: 'Email Verification',
+            headerBackVisible: false
+          }}
+        />
+
+        <Stack.Screen
           name="profile"
           options={{ title: 'My Profile' }}
         />
