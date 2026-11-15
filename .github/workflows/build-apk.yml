@@ -18,27 +18,25 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 20
 
-      - name: Setup Expo and EAS CLI
-        uses: expo/expo-github-action@v8
-        with:
-          eas-version: latest
-          packager: npm
-          token: ${{ secrets.EXPO_TOKEN }}
+      - name: Install EAS CLI
+        run: npm install -g eas-cli
 
-      - name: Install dependencies
+      - name: Install Expo dependencies
         working-directory: mobile
-        run: npm install
-
-      - name: Install Expo Asset
-        working-directory: mobile
-        run: npx expo install expo-asset
+        run: |
+          npm install
+          npx expo install expo-asset
 
       - name: Initialize TALASH project
         working-directory: mobile
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: eas init --account saadahmedandroid --non-interactive
 
       - name: Build Android APK
         working-directory: mobile
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: eas build --platform android --profile preview --non-interactive --no-wait
