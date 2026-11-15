@@ -1,0 +1,25 @@
+{
+  "expo": {
+    "name": "TALASH",
+    "slug": "talash-muslim-matrimonial",
+    "scheme": "talash",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "plugins": [
+      "expo-router",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "TALASH uses your camera to capture profile and verification photos."
+        }
+      ]
+    ],
+    "android": {
+      "package": "com.talash.matrimonial",
+      "permissions": [
+        "CAMERA"
+      ]
+    }
+  }
+}
