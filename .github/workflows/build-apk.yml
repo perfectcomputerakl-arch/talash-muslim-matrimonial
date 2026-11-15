@@ -27,9 +27,13 @@ jobs:
           packager: npm
           token: ${{ secrets.EXPO_TOKEN }}
 
-      - name: Install mobile dependencies
+      - name: Install dependencies
         working-directory: mobile
         run: npm install
+
+      - name: Initialize TALASH Expo project
+        working-directory: mobile
+        run: eas init --account saadahmedandroid --non-interactive
 
       - name: Build Android APK
         working-directory: mobile
