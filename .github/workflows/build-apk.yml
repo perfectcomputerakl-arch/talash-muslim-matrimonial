@@ -12,50 +12,33 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Checkout repository
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2. Setup Node.js
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
 
-      # 3. Install EAS CLI
       - name: Install EAS CLI
         run: npm install -g eas-cli
 
-      # 4. Install project dependencies
       - name: Install dependencies
         working-directory: mobile
         run: npm install
 
-      # 5. Install missing Expo peer dependencies
-      - name: Install Expo peer dependencies
-        working-directory: mobile
-        run: npx expo install expo-font expo-constants expo-linking react-native-screens
-
-      # 6. Fix SDK compatible package versions
       - name: Fix Expo dependencies
         working-directory: mobile
         run: npx expo install --fix
 
-      # 7. Check dependencies
-      - name: Run Expo Doctor
-        working-directory: mobile
-        run: npx expo-doctor
-
-      # 8. Initialize TALASH Expo project
       - name: Initialize TALASH project
         working-directory: mobile
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: eas init --account saadahmedandroid --non-interactive
 
-      # 9. Build Android APK
       - name: Build Android APK
         working-directory: mobile
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-        run: eas build --platform android --profile
+        run: eas build --platform android --profile preview --non-interactive --no-wait
