@@ -1,214 +1,264 @@
 import { useState } from 'react';
 import {
-View, Text, TextInput, Pressable, Switch,
-Alert, StyleSheet, ScrollView, ActivityIndicator
+  View,
+  Text,
+  TextInput,
+  Pressable,
+  StyleSheet,
+  Alert,
+  ActivityIndicator,
+  ScrollView
 } from 'react-native';
 import { router } from 'expo-router';
 import { supabase } from '../lib/supabase';
 
 export default function Register() {
-const [email, setEmail] = useState('');
-const [password, setPassword] = useState('');
-const [fullName, setFullName] = useState('');
-const [gender, setGender] = useState('');
-const [city, setCity] = useState('');
-const [dateOfBirth, setDateOfBirth] = useState('');
-const [muslim, setMuslim] = useState(false);
-const [consent, setConsent] = useState(false);
-const [loading, setLoading] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [loading, setLoading] = useState(false);
 
-const submit = async () => {
-if (!fullName.trim() || !email.trim() || !password ||
-!gender || !city.trim() || !dateOfBirth.trim()) {
-Alert.alert('Required', 'Please complete all fields.');
-return;
-}
+  const register = async () => {
+    const cleanEmail = email.trim().toLowerCase();
 
-if (password.length < 8) {
-  Alert.alert('Weak Password', 'Password must contain at least 8 characters.');
-  return;
-}
+    if (!cleanEmail || !password || !confirmPassword) {
+      Alert.alert('Required', 'Please fill in all fields.');
+      return;
+    }
 
-if (!muslim || !consent) {
-  Alert.alert('Declaration Required',
-    'Please accept both declarations to continue.');
-  return;
-}
+    if (password.length < 8) {
+      Alert.alert(
+        'Weak Password',
+        'Password must contain at least 8 characters.'
+      );
+      return;
+    }
 
-const dob = new Date(dateOfBirth);
-if (
-  !/^\d{4}-\d{2}-\d{2}$/.test(dateOfBirth) ||
-  Number.isNaN(dob.getTime()) ||
-  dob.toISOString().slice(0, 10) !== dateOfBirth ||
-  dob > new Date()
-) {
-  Alert.alert('Invalid Date', 'Enter date in YYYY-MM-DD format.');
-  return;
-}
+    if (password !== confirmPassword) {
+      Alert.alert('Password Error', 'Passwords do not match.');
+      return;
+    }
 
-const today = new Date();
-let age = today.getFullYear() - dob.getFullYear();
-const birthdayPassed =
-  today.getMonth() > dob.getMonth() ||
-  (today.getMonth() === dob.getMonth() &&
-   today.getDate() >= dob.getDate());
+    setLoading(true);
 
-if (!birthdayPassed) age--;
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email: cleanEmail,
+        password
+      });
 
-if (age < 18) {
-  Alert.alert('Age Restriction', 'TALASH is only for adults aged 18 or above.');
-  return;
-}
+      if (error) throw error;
 
-if (loading) return;
-setLoading(true);
+      if (data.session) {
+        Alert.alert(
+          'Account Created',
+          'Your TALASH account has been created. Now complete your profile.',
+          [
+            {
+              text: 'Continue',
+              onPress: () => router.replace('/edit-profile')
+            }
+          ]
+        );
+      } else {
+        Alert.alert(
+          'Verify Your Email',
+          'We have sent a confirmation link to your email address. Please verify your email, then return to TALASH and login to complete your profile.',
+          [
+            {
+              text: 'Go to Login',
+              onPress: () => router.replace('/')
+            }
+          ]
+        );
+      }
+    } catch (error: any) {
+      Alert.alert(
+        'Registration Failed',
+        error.message || 'Unable to create your account. Please try again.'
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
 
-try {
-  const { data, error } = await supabase.auth.signUp({
-    email: email.trim().toLowerCase(),
-    password
-  });
+  return (
+    <ScrollView contentContainerStyle={s.container}>
+      <Text style={s.logo}>TALASH</Text>
 
-  if (error) throw error;
+      <Text style={s.subtitle}>
+        Begin your journey towards a blessed future
+      </Text>
 
-  if (!data.user) {
-    throw new Error('Account could not be created.');
-  }
+      <Text style={s.heading}>Create Account</Text>
 
-  // Profile is saved after email confirmation through the
-  // authenticated onboarding flow. Do not assume a session exists.
+      <Text style={s.description}>
+        Join TALASH, a Muslim matrimonial platform built around privacy,
+        respect and trust.
+      </Text>
 
-  Alert.alert(
-    'Registration Successful',
-    'Please verify your email. After confirmation, sign in to complete your profile.',
-    [{ text: 'Continue', onPress: () => router.replace('/') }]
-  );
-} catch (error: any) {
-  Alert.alert('Registration Failed', error.message);
-} finally {
-  setLoading(false);
-}
+      <Text style={s.label}>Email Address</Text>
+      <TextInput
+        style={s.input}
+        placeholder="Enter your email"
+        value={email}
+        onChangeText={setEmail}
+        keyboardType="email-address"
+        autoCapitalize="none"
+        autoCorrect={false}
+      />
 
-};
+      <Text style={s.label}>Password</Text>
+      <TextInput
+        style={s.input}
+        placeholder="Minimum 8 characters"
+        value={password}
+        onChangeText={setPassword}
+        secureTextEntry
+      />
 
-return (
-<ScrollView contentContainerStyle={s.wrap}>
-<Text style={s.title}>Join TALASH</Text>
-<Text style={s.help}>
-A Muslim matrimonial platform for adults aged 18 and above.
-</Text>
+      <Text style={s.label}>Confirm Password</Text>
+      <TextInput
+        style={s.input}
+        placeholder="Enter password again"
+        value={confirmPassword}
+        onChangeText={setConfirmPassword}
+        secureTextEntry
+      />
 
-  <Text style={s.label}>Full Name</Text>
-  <TextInput
-    style={s.input}
-    placeholder="Enter your full name"
-    value={fullName}
-    onChangeText={setFullName}
-  />
-
-  <Text style={s.label}>Email Address</Text>
-  <TextInput
-    style={s.input}
-    placeholder="Enter your email"
-    keyboardType="email-address"
-    autoCapitalize="none"
-    autoCorrect={false}
-    value={email}
-    onChangeText={setEmail}
-  />
-
-  <Text style={s.label}>Password</Text>
-  <TextInput
-    style={s.input}
-    placeholder="Minimum 8 characters"
-    secureTextEntry
-    value={password}
-    onChangeText={setPassword}
-  />
-
-  <Text style={s.label}>Date of Birth</Text>
-  <TextInput
-    style={s.input}
-    placeholder="YYYY-MM-DD"
-    keyboardType="numbers-and-punctuation"
-    value={dateOfBirth}
-    onChangeText={setDateOfBirth}
-  />
-
-  <Text style={s.label}>I am registering as</Text>
-  <View style={s.genderRow}>
-    {['Bride', 'Groom'].map(item => (
-      <Pressable
-        key={item}
-        style={[s.genderButton, gender === item && s.selected]}
-        onPress={() => setGender(item)}
-      >
-        <Text style={[s.genderText, gender === item && s.selectedText]}>
-          {item}
+      <View style={s.notice}>
+        <Text style={s.noticeTitle}>Important</Text>
+        <Text style={s.noticeText}>
+          • TALASH is for adults aged 18 and above.
         </Text>
+        <Text style={s.noticeText}>
+          • Users must declare their Muslim identity.
+        </Text>
+        <Text style={s.noticeText}>
+          • Profile information must be truthful.
+        </Text>
+        <Text style={s.noticeText}>
+          • Verification is subject to manual admin review.
+        </Text>
+      </View>
+
+      <Pressable
+        style={[s.button, loading && s.disabled]}
+        onPress={register}
+        disabled={loading}
+      >
+        {loading ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <Text style={s.buttonText}>Create My Account</Text>
+        )}
       </Pressable>
-    ))}
-  </View>
 
-  <Text style={s.label}>City</Text>
-  <TextInput
-    style={s.input}
-    placeholder="Your city"
-    value={city}
-    onChangeText={setCity}
-  />
+      <View style={s.loginRow}>
+        <Text style={s.loginText}>Already have an account? </Text>
+        <Pressable onPress={() => router.replace('/')}>
+          <Text style={s.loginLink}>Login</Text>
+        </Pressable>
+      </View>
 
-  <View style={s.row}>
-    <Switch value={muslim} onValueChange={setMuslim} />
-    <Text style={s.check}>
-      I declare that I am Muslim and wish to join this Muslim-only platform.
-    </Text>
-  </View>
-
-  <View style={s.row}>
-    <Switch value={consent} onValueChange={setConsent} />
-    <Text style={s.check}>
-      I agree to the Privacy Notice and consent to profile review.
-      Verification photos will only be accessible to authorized reviewers.
-    </Text>
-  </View>
-
-  <Pressable
-    style={[s.button, loading && { opacity: 0.7 }]}
-    onPress={submit}
-    disabled={loading}
-  >
-    {loading
-      ? <ActivityIndicator color="#fff" />
-      : <Text style={s.btn}>CREATE ACCOUNT</Text>}
-  </Pressable>
-</ScrollView>
-
-);
+      <Text style={s.footer}>
+        TALASH • Privacy • Respect • Trust
+      </Text>
+    </ScrollView>
+  );
 }
 
 const s = StyleSheet.create({
-wrap: { padding: 22, backgroundColor: '#f7f5ef', flexGrow: 1 },
-title: { fontSize: 30, fontWeight: '900', color: '#0a513b', marginBottom: 8 },
-help: { color: '#666', marginBottom: 22, lineHeight: 21 },
-label: { fontWeight: '700', color: '#163b2c', marginBottom: 7 },
-input: {
-backgroundColor: '#fff', padding: 14, borderRadius: 10,
-marginBottom: 16, borderWidth: 1, borderColor: '#ddd'
-},
-genderRow: { flexDirection: 'row', gap: 12, marginBottom: 18 },
-genderButton: {
-flex: 1, padding: 14, borderRadius: 10,
-borderWidth: 1, borderColor: '#0a513b', alignItems: 'center'
-},
-selected: { backgroundColor: '#0a513b' },
-genderText: { color: '#0a513b', fontWeight: '700' },
-selectedText: { color: '#fff' },
-row: { flexDirection: 'row', alignItems: 'center', marginVertical: 12, gap: 10 },
-check: { flex: 1, color: '#333', lineHeight: 20 },
-button: {
-backgroundColor: '#0a513b', padding: 17,
-borderRadius: 12, alignItems: 'center', marginTop: 20
-},
-btn: { color: 'white', fontWeight: '900' }
+  container: {
+    flexGrow: 1,
+    padding: 23,
+    justifyContent: 'center',
+    backgroundColor: '#f7f5ef'
+  },
+  logo: {
+    textAlign: 'center',
+    fontSize: 36,
+    fontWeight: '900',
+    letterSpacing: 7,
+    color: '#0a513b'
+  },
+  subtitle: {
+    textAlign: 'center',
+    color: '#94722b',
+    marginTop: 8,
+    marginBottom: 35
+  },
+  heading: {
+    fontSize: 27,
+    fontWeight: '900',
+    color: '#0a513b'
+  },
+  description: {
+    color: '#777',
+    lineHeight: 21,
+    marginTop: 8,
+    marginBottom: 15
+  },
+  label: {
+    color: '#244b3a',
+    fontWeight: '800',
+    marginTop: 15,
+    marginBottom: 7
+  },
+  input: {
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 12,
+    padding: 15,
+    fontSize: 15
+  },
+  notice: {
+    backgroundColor: '#e9f1eb',
+    padding: 15,
+    borderRadius: 12,
+    marginTop: 22
+  },
+  noticeTitle: {
+    color: '#0a513b',
+    fontWeight: '900',
+    marginBottom: 7
+  },
+  noticeText: {
+    color: '#466052',
+    lineHeight: 23
+  },
+  button: {
+    backgroundColor: '#0a513b',
+    padding: 17,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 24
+  },
+  buttonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '900'
+  },
+  disabled: {
+    opacity: 0.6
+  },
+  loginRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginTop: 25
+  },
+  loginText: {
+    color: '#666'
+  },
+  loginLink: {
+    color: '#0a513b',
+    fontWeight: '900'
+  },
+  footer: {
+    textAlign: 'center',
+    color: '#999',
+    marginTop: 35,
+    marginBottom: 15
+  }
 });
