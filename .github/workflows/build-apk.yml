@@ -1,44 +1,44 @@
 name: TALASH Android APK Build
 
 on:
-workflow_dispatch:
-push:
-branches:
-- main
+  workflow_dispatch:
+  push:
+    branches:
+      - main
 
 jobs:
-build:
-name: Build TALASH APK
-runs-on: ubuntu-latest
+  build:
+    name: Build TALASH APK
+    runs-on: ubuntu-latest
 
-steps:
-  - name: Checkout repository
-    uses: actions/checkout@v4
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-  - name: Setup Node.js
-    uses: actions/setup-node@v4
-    with:
-      node-version: 22
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
 
-  - name: Setup Expo and EAS CLI
-    uses: expo/expo-github-action@v8
-    with:
-      eas-version: latest
-      packager: npm
-      token: ${{ secrets.EXPO_TOKEN }}
+      - name: Setup Expo and EAS CLI
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          packager: npm
+          token: ${{ secrets.EXPO_TOKEN }}
 
-  - name: Install dependencies
-    working-directory: mobile
-    run: npm install
+      - name: Install dependencies
+        working-directory: mobile
+        run: npm install
 
-  - name: Install missing Expo asset package
-    working-directory: mobile
-    run: npx expo install expo-asset
+      - name: Install Expo Asset
+        working-directory: mobile
+        run: npx expo install expo-asset
 
-  - name: Initialize TALASH Expo project
-    working-directory: mobile
-    run: eas init --account saadahmedandroid --non-interactive
+      - name: Initialize TALASH project
+        working-directory: mobile
+        run: eas init --account saadahmedandroid --non-interactive
 
-  - name: Build Android APK
-    working-directory: mobile
-    run: eas build --platform android --profile preview --non-interactive --no-wait
+      - name: Build Android APK
+        working-directory: mobile
+        run: eas build --platform android --profile preview --non-interactive --no-wait
