@@ -18,21 +18,18 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
 
-      - name: Setup Expo and EAS
+      - name: Setup Expo and EAS CLI
         uses: expo/expo-github-action@v8
         with:
           eas-version: latest
+          packager: npm
           token: ${{ secrets.EXPO_TOKEN }}
 
-      - name: Install dependencies
+      - name: Install mobile dependencies
         working-directory: mobile
         run: npm install
-
-      - name: Initialize EAS project
-        working-directory: mobile
-        run: eas init --force --non-interactive
 
       - name: Build Android APK
         working-directory: mobile
